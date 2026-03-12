@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DLVO Theory Explorer</title>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #eef1f6;
+      color: #222;
+    }
+
+    header {
+      background: #1b2a4a;
+      color: #fff;
+      padding: 14px 24px;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.01em; }
+    header p  { font-size: 0.8rem; opacity: 0.65; margin-top: 3px; }
+
+    .main {
+      display: grid;
+      grid-template-columns: 310px 1fr;
+      gap: 14px;
+      padding: 14px;
+    }
+
+    /* ---- Controls ---- */
+    .controls {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      overflow-y: auto;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    }
+
+    .section-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #7080a0;
+      margin: 14px 0 8px;
+    }
+    .section-title:first-child { margin-top: 0; }
+
+    .param {
+      margin-bottom: 12px;
+    }
+    .param label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      margin-bottom: 3px;
+    }
+    .param label .name { font-weight: 600; color: #334; }
+    .param label .value { color: #1b2a4a; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .param input[type=range] {
+      width: 100%;
+      accent-color: #1b2a4a;
+      cursor: pointer;
+      height: 4px;
+    }
+    .param .hint {
+      font-size: 0.7rem;
+      color: #9aabb0;
+      margin-top: 2px;
+    }
+
+    /* valence buttons */
+    .valence-group {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .valence-group button {
+      flex: 1;
+      padding: 5px 0;
+      border: 2px solid #d0d8e8;
+      border-radius: 6px;
+      background: #f5f7fa;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: #334;
+    }
+    .valence-group button.active {
+      background: #1b2a4a;
+      border-color: #1b2a4a;
+      color: #fff;
+    }
+
+    /* material presets */
+    .presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 4px;
+    }
+    .presets button {
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border: 1.5px solid #c8d4e4;
+      border-radius: 20px;
+      background: #f5f7fa;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: #334;
+    }
+    .presets button:hover { background: #e0e8f5; border-color: #8090b8; }
+    .presets button.active { background: #1b2a4a; border-color: #1b2a4a; color: #fff; }
+
+    /* ---- Plot area ---- */
+    .plot-area {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    #plot {
+      height: clamp(360px, calc(100vh - 280px), 800px);
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    }
+
+    /* ---- Info panel ---- */
+    .info-panel {
+      background: #fff;
+      border-radius: 12px;
+      padding: 14px 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+      display: flex;
+      gap: 0;
+      flex-wrap: wrap;
+      align-items: stretch;
+    }
+
+    .info-item {
+      flex: 1;
+      min-width: 120px;
+      padding: 0 16px;
+      border-right: 1px solid #eef1f6;
+      text-align: center;
+    }
+    .info-item:first-child { padding-left: 0; }
+    .info-item:last-child  { border-right: none; }
+
+    .info-item .label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #8090a8;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .info-item .val {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #1b2a4a;
+      font-variant-numeric: tabular-nums;
+    }
+    .info-item .sub {
+      font-size: 0.68rem;
+      color: #8090a8;
+      margin-top: 1px;
+    }
+
+    /* stability badge */
+    #stability-badge {
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .stable   { background: #d4f4de; color: #176a30; }
+    .marginal { background: #fff3cd; color: #856404; }
+    .unstable { background: #ffe0e0; color: #922222; }
+
+    /* legend note */
+    .legend-note {
+      font-size: 0.7rem;
+      color: #8090a8;
+      margin-top: 6px;
+      text-align: center;
+    }
+
+    @media (max-width: 900px) {
+      .main { grid-template-columns: 1fr; }
+      .info-panel { gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>DLVO Theory Explorer</h1>
+  <p>Derjaguin–Landau–Verwey–Overbeek model of colloidal stability — adjust parameters to see interaction energy curves</p>
+</header>
+
+<div class="main">
+
+  <!-- ==================== CONTROLS ==================== -->
+  <div class="controls">
+
+    <div class="section-title">Particle &amp; Material</div>
+
+    <div class="param">
+      <label>
+        <span class="name">Radius <em>R</em></span>
+        <span class="value" id="lbl-R">50 nm</span>
+      </label>
+      <input type="range" id="sl-R" min="1" max="500" step="1" value="50" />
+      <div class="hint">Derjaguin approx. valid when h ≪ R</div>
+    </div>
+
+    <div class="param">
+      <label>
+        <span class="name">Hamaker constant <em>A</em></span>
+        <span class="value" id="lbl-A">10 zJ</span>
+      </label>
+      <input type="range" id="sl-A" min="-1.3" max="2" step="0.02" value="1" />
+      <div class="hint">Log scale, 1 zJ = 10⁻²¹ J</div>
+    </div>
+
+    <div class="param">
+      <label><span class="name">Material presets</span></label>
+      <div class="presets" id="material-presets">
+        <button data-a="0.8"  data-name="SiO₂">SiO₂/water</button>
+        <button data-a="1.3"  data-name="PS"   >PS/water</button>
+        <button data-a="6"    data-name="TiO₂" >TiO₂/water</button>
+        <button data-a="10"   data-name="CaCO₃">CaCO₃/water</button>
+        <button data-a="40"   data-name="Au"   >Au/water</button>
+      </div>
+    </div>
+
+    <div class="section-title">Surface Chemistry</div>
+
+    <div class="param">
+      <label>
+        <span class="name">Surface potential <em>ψ₀</em></span>
+        <span class="value" id="lbl-psi">−30 mV</span>
+      </label>
+      <input type="range" id="sl-psi" min="-120" max="120" step="1" value="-30" />
+      <div class="hint">Use zeta potential as approximation</div>
+    </div>
+
+    <div class="section-title">Solution Conditions</div>
+
+    <div class="param">
+      <label>
+        <span class="name">Electrolyte conc. <em>c</em></span>
+        <span class="value" id="lbl-c">10 mM</span>
+      </label>
+      <input type="range" id="sl-c" min="-2" max="3" step="0.02" value="1" />
+      <div class="hint">Log scale, mM (10⁻³ mol/L)</div>
+    </div>
+
+    <div class="param">
+      <label>
+        <span class="name">Valence <em>z</em></span>
+      </label>
+      <div class="valence-group" id="valence-group">
+        <button data-z="1" class="active">z = 1</button>
+        <button data-z="2">z = 2</button>
+        <button data-z="3">z = 3</button>
+      </div>
+      <div class="hint" style="margin-top:5px">Schulze–Hardy rule: CCC ∝ z⁻⁶</div>
+    </div>
+
+    <div class="param">
+      <label>
+        <span class="name">Temperature <em>T</em></span>
+        <span class="value" id="lbl-T">298 K</span>
+      </label>
+      <input type="range" id="sl-T" min="273" max="373" step="1" value="298" />
+      <div class="hint">273 K (0 °C) → 373 K (100 °C)</div>
+    </div>
+
+    <div class="param">
+      <label>
+        <span class="name">Relative permittivity <em>ε<sub>r</sub></em></span>
+        <span class="value" id="lbl-eps">78.5</span>
+      </label>
+      <input type="range" id="sl-eps" min="20" max="100" step="0.5" value="78.5" />
+      <div class="hint">Water at 25 °C ≈ 78.5</div>
+    </div>
+
+    <div class="section-title">Display</div>
+
+    <div class="param">
+      <label>
+        <span class="name">Max separation <em>h</em><sub>max</sub></span>
+        <span class="value" id="lbl-hmax">auto</span>
+      </label>
+      <input type="range" id="sl-hmax" min="5" max="200" step="5" value="0" />
+      <div class="hint">0 = auto (10× Debye length)</div>
+    </div>
+
+    <div class="param" style="display:flex; gap:12px; align-items:center; margin-top:8px;">
+      <label style="font-size:0.82rem; font-weight:600; color:#334; display:flex; align-items:center; gap:6px; cursor:pointer;">
+        <input type="checkbox" id="cb-edl"   checked /> EDL repulsion
+      </label>
+      <label style="font-size:0.82rem; font-weight:600; color:#334; display:flex; align-items:center; gap:6px; cursor:pointer;">
+        <input type="checkbox" id="cb-vdw"   checked /> vdW attraction
+      </label>
+    </div>
+
+  </div>
+
+  <!-- ==================== PLOT AREA ==================== -->
+  <div class="plot-area">
+    <div id="plot"></div>
+
+    <div class="info-panel">
+      <div class="info-item">
+        <div class="label">Debye length κ⁻¹</div>
+        <div class="val" id="inf-debye">—</div>
+        <div class="sub">nm</div>
+      </div>
+      <div class="info-item">
+        <div class="label">κR</div>
+        <div class="val" id="inf-kR">—</div>
+        <div class="sub">Derjaguin validity</div>
+      </div>
+      <div class="info-item">
+        <div class="label">Energy barrier</div>
+        <div class="val" id="inf-barrier">—</div>
+        <div class="sub">k<sub>B</sub>T</div>
+      </div>
+      <div class="info-item">
+        <div class="label">Secondary min.</div>
+        <div class="val" id="inf-secmin">—</div>
+        <div class="sub">k<sub>B</sub>T</div>
+      </div>
+      <div class="info-item">
+        <div class="label">Stability</div>
+        <div class="val">
+          <span id="stability-badge" class="stable">Stable</span>
+        </div>
+        <div class="sub" id="stability-note">barrier &gt; 15 k<sub>B</sub>T</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  Physical constants (SI)
+// ============================================================
+const E  = 1.602176634e-19;   // elementary charge, C
+const KB = 1.380649e-23;      // Boltzmann, J/K
+const NA = 6.02214076e23;     // Avogadro, mol⁻¹
+const EPS0 = 8.8541878e-12;   // permittivity of vacuum, F/m
+const LAMBDA_L = 100e-9;      // London retardation wavelength, m
+
+// ============================================================
+//  State
+// ============================================================
+const state = {
+  R:    50e-9,         // m
+  A:    10e-21,        // J
+  psi0: -30e-3,        // V
+  c_mM: 10,            // mM
+  z:    1,
+  T:    298,           // K
+  eps_r: 78.5,
+  hmax_nm: 0,          // 0 = auto
+  showEDL: true,
+  showVdW: true,
+};
+
+// ============================================================
+//  DLVO computation
+// ============================================================
+function computeDLVO(s) {
+  const { R, A, psi0, c_mM, z, T, eps_r } = s;
+  const kT    = KB * T;
+  const eps   = EPS0 * eps_r;
+  const c_SI  = c_mM * 1e-3 * 1e3;   // mol/m³  (1 mM = 1 mol/m³)
+
+  // Debye parameter
+  const kappa = Math.sqrt(2 * NA * c_SI * z * z * E * E / (eps * kT));
+  const debye = 1 / kappa;            // m
+
+  // Reduced surface potential
+  const gamma = Math.tanh(z * E * Math.abs(psi0) / (4 * kT));
+
+  // EDL prefactor (Hogg–Healy–Fuerstenau, κR >> 1)
+  const prefEDL = 64 * Math.PI * eps * R * Math.pow(kT / (z * E), 2) * gamma * gamma;
+
+  // h range
+  const hMax_m = s.hmax_nm > 0
+    ? s.hmax_nm * 1e-9
+    : Math.max(100e-9, 10 * debye);
+
+  const N = 600;
+  const h_arr = [], edl_arr = [], vdw_arr = [], tot_arr = [];
+
+  for (let i = 0; i < N; i++) {
+    // use a slightly compressed spacing so detail near h=0 is captured
+    const t = i / (N - 1);
+    const h = 0.1e-9 + (hMax_m - 0.1e-9) * t * t;  // quadratic spacing
+
+    const edl = prefEDL * Math.exp(-kappa * h);
+    const vdw = -A * R / (12 * h) / (1 + 14 * h / LAMBDA_L);
+
+    h_arr.push(h * 1e9);            // nm
+    edl_arr.push(edl / kT);
+    vdw_arr.push(vdw / kT);
+    tot_arr.push((edl + vdw) / kT);
+  }
+
+  // Find primary maximum (energy barrier) in V_total
+  let barrier = null;
+  let barrierIdx = -1;
+  for (let i = 1; i < tot_arr.length - 1; i++) {
+    if (tot_arr[i] > tot_arr[i-1] && tot_arr[i] > tot_arr[i+1] && tot_arr[i] > 0) {
+      if (barrier === null || tot_arr[i] > barrier) {
+        barrier = tot_arr[i];
+        barrierIdx = i;
+      }
+    }
+  }
+
+  // Find secondary minimum (local min at larger h)
+  let secMin = null;
+  const startIdx = barrierIdx >= 0 ? barrierIdx : Math.floor(N * 0.1);
+  for (let i = startIdx + 1; i < tot_arr.length - 1; i++) {
+    if (tot_arr[i] < tot_arr[i-1] && tot_arr[i] < tot_arr[i+1] && tot_arr[i] < 0) {
+      if (secMin === null || tot_arr[i] < secMin) {
+        secMin = tot_arr[i];
+      }
+    }
+  }
+
+  return { h_arr, edl_arr, vdw_arr, tot_arr, debye, kappa, barrier, secMin };
+}
+
+// ============================================================
+//  Plot
+// ============================================================
+let plotInited = false;
+
+function update() {
+  const res = computeDLVO(state);
+  const { h_arr, edl_arr, vdw_arr, tot_arr, debye, kappa, barrier, secMin } = res;
+
+  // Determine y-axis range (clip extreme vdW near h=0)
+  const visibleTot = tot_arr.filter((v, i) => i > 5);
+  const yMin = Math.max(Math.min(...visibleTot, -10) - 5, -60);
+  const yMax = Math.min(Math.max(...visibleTot,  10) + 5,  80);
+
+  const traces = [
+    {
+      x: h_arr, y: tot_arr,
+      name: 'V<sub>total</sub>',
+      line: { color: '#1b2a4a', width: 2.5 },
+      type: 'scatter', mode: 'lines',
+    },
+  ];
+  if (state.showEDL) traces.push({
+    x: h_arr, y: edl_arr,
+    name: 'V<sub>EDL</sub> (repulsion)',
+    line: { color: '#2575e8', width: 1.5, dash: 'dot' },
+    type: 'scatter', mode: 'lines',
+  });
+  if (state.showVdW) traces.push({
+    x: h_arr, y: vdw_arr,
+    name: 'V<sub>vdW</sub> (attraction)',
+    line: { color: '#e05c3a', width: 1.5, dash: 'dot' },
+    type: 'scatter', mode: 'lines',
+  });
+
+  // Zero line shape
+  const shapes = [{
+    type: 'line',
+    x0: h_arr[0], x1: h_arr[h_arr.length - 1],
+    y0: 0, y1: 0,
+    line: { color: '#ccc', width: 1, dash: 'solid' },
+    layer: 'below',
+  }];
+  // Debye-length marker
+  shapes.push({
+    type: 'line',
+    x0: debye * 1e9, x1: debye * 1e9,
+    y0: yMin, y1: yMax,
+    line: { color: '#a0b8d0', width: 1, dash: 'dashdot' },
+    layer: 'below',
+  });
+
+  const layout = {
+    xaxis: {
+      title: 'Surface–surface separation <i>h</i> (nm)',
+      range: [0, h_arr[h_arr.length - 1]],
+      zeroline: false,
+      gridcolor: '#f0f2f5',
+    },
+    yaxis: {
+      title: 'Interaction energy V / k<sub>B</sub>T',
+      range: [yMin, yMax],
+      zeroline: false,
+      gridcolor: '#f0f2f5',
+    },
+    legend: { orientation: 'h', x: 0.5, xanchor: 'center', y: 1.08 },
+    margin: { t: 40, r: 20, b: 55, l: 65 },
+    paper_bgcolor: '#fff',
+    plot_bgcolor: '#fff',
+    shapes,
+    annotations: [{
+      x: debye * 1e9,
+      y: yMax,
+      xanchor: 'left',
+      yanchor: 'top',
+      text: `κ⁻¹`,
+      showarrow: false,
+      font: { size: 11, color: '#7090b0' },
+    }],
+    font: { family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", size: 12 },
+    hovermode: 'x unified',
+  };
+
+  if (!plotInited) {
+    Plotly.newPlot('plot', traces, layout, { responsive: true, displayModeBar: true, modeBarButtonsToRemove: ['lasso2d','select2d'] });
+    plotInited = true;
+  } else {
+    Plotly.react('plot', traces, layout);
+  }
+
+  // Info panel
+  const debye_nm = debye * 1e9;
+  const kR       = kappa * state.R;
+
+  document.getElementById('inf-debye').textContent   = debye_nm.toFixed(1);
+  document.getElementById('inf-kR').textContent      = kR.toFixed(1);
+  document.getElementById('inf-barrier').textContent = barrier !== null ? barrier.toFixed(1) : '—';
+  document.getElementById('inf-secmin').textContent  = secMin  !== null ? secMin.toFixed(2) : 'none';
+
+  const badge = document.getElementById('stability-badge');
+  const note  = document.getElementById('stability-note');
+  if (barrier === null || barrier < 1) {
+    badge.textContent = 'Unstable';
+    badge.className = 'unstable';
+    note.innerHTML = 'no barrier — rapid coagulation';
+  } else if (barrier < 5) {
+    badge.textContent = 'Unstable';
+    badge.className = 'unstable';
+    note.innerHTML = `barrier = ${barrier.toFixed(1)} k<sub>B</sub>T`;
+  } else if (barrier < 15) {
+    badge.textContent = 'Marginal';
+    badge.className = 'marginal';
+    note.innerHTML = `barrier = ${barrier.toFixed(1)} k<sub>B</sub>T`;
+  } else {
+    badge.textContent = 'Stable';
+    badge.className = 'stable';
+    note.innerHTML = `barrier = ${barrier.toFixed(1)} k<sub>B</sub>T`;
+  }
+}
+
+// ============================================================
+//  Slider wiring
+// ============================================================
+function wire(id, label, transform, format) {
+  const sl  = document.getElementById(id);
+  const lbl = document.getElementById(label);
+  sl.addEventListener('input', () => {
+    const v = transform(parseFloat(sl.value));
+    lbl.textContent = format(v);
+    return v;
+  });
+  sl.addEventListener('input', update);
+  return sl;
+}
+
+// R — linear nm → m
+const slR = document.getElementById('sl-R');
+slR.addEventListener('input', () => {
+  const nm = parseFloat(slR.value);
+  state.R = nm * 1e-9;
+  document.getElementById('lbl-R').textContent = `${nm} nm`;
+  update();
+});
+
+// A — log scale (slider value = log10(A/zJ))
+const slA = document.getElementById('sl-A');
+slA.addEventListener('input', () => {
+  const zJ = Math.pow(10, parseFloat(slA.value));
+  state.A  = zJ * 1e-21;
+  const disp = zJ < 10 ? zJ.toFixed(2) : zJ.toFixed(1);
+  document.getElementById('lbl-A').textContent = `${disp} zJ`;
+  // deselect material presets
+  document.querySelectorAll('#material-presets button').forEach(b => b.classList.remove('active'));
+  update();
+});
+
+// ψ₀
+const slPsi = document.getElementById('sl-psi');
+slPsi.addEventListener('input', () => {
+  const mv  = parseFloat(slPsi.value);
+  state.psi0 = mv * 1e-3;
+  const sign = mv >= 0 ? '+' : '−';
+  document.getElementById('lbl-psi').textContent = `${sign}${Math.abs(mv)} mV`;
+  update();
+});
+
+// c — log scale mM
+const slC = document.getElementById('sl-c');
+slC.addEventListener('input', () => {
+  const mM = Math.pow(10, parseFloat(slC.value));
+  state.c_mM = mM;
+  const disp = mM < 1 ? mM.toFixed(3) : mM < 10 ? mM.toFixed(2) : mM < 100 ? mM.toFixed(1) : mM.toFixed(0);
+  document.getElementById('lbl-c').textContent = `${disp} mM`;
+  update();
+});
+
+// z — buttons
+document.querySelectorAll('#valence-group button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#valence-group button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.z = parseInt(btn.dataset.z);
+    update();
+  });
+});
+
+// T
+const slT = document.getElementById('sl-T');
+slT.addEventListener('input', () => {
+  const K = parseFloat(slT.value);
+  state.T = K;
+  document.getElementById('lbl-T').textContent = `${K} K`;
+  update();
+});
+
+// eps_r
+const slEps = document.getElementById('sl-eps');
+slEps.addEventListener('input', () => {
+  const er = parseFloat(slEps.value);
+  state.eps_r = er;
+  document.getElementById('lbl-eps').textContent = er.toFixed(1);
+  update();
+});
+
+// hmax
+const slHmax = document.getElementById('sl-hmax');
+slHmax.addEventListener('input', () => {
+  const nm = parseFloat(slHmax.value);
+  state.hmax_nm = nm;
+  document.getElementById('lbl-hmax').textContent = nm === 0 ? 'auto' : `${nm} nm`;
+  update();
+});
+
+// Checkboxes
+document.getElementById('cb-edl').addEventListener('change', e => { state.showEDL = e.target.checked; update(); });
+document.getElementById('cb-vdw').addEventListener('change', e => { state.showVdW = e.target.checked; update(); });
+
+// Material presets (A in units of 10⁻²⁰ J = 10 zJ)
+document.querySelectorAll('#material-presets button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#material-presets button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const zJ = parseFloat(btn.dataset.a);        // value given in 10⁻²¹ * 10 = 10⁻²⁰ J
+    // dataset.a is in units of 10⁻²⁰ J
+    state.A = parseFloat(btn.dataset.a) * 1e-20;
+    // sync slider: log10(A/zJ) = log10(A/1e-21) = log10(A*1e21)
+    const logVal = Math.log10(state.A * 1e21);
+    slA.value = logVal;
+    const dispZJ = state.A * 1e21;
+    const disp   = dispZJ < 10 ? dispZJ.toFixed(2) : dispZJ.toFixed(1);
+    document.getElementById('lbl-A').textContent = `${disp} zJ`;
+    update();
+  });
+});
+
+// ============================================================
+//  Init
+// ============================================================
+update();
+</script>
+
+<!-- ============================================================
+     EQUATIONS REFERENCE (collapsed details)
+     ============================================================ -->
+<details style="padding:12px 24px 16px; background:#fff; border-top:1px solid #e8ecf2; font-size:0.8rem; color:#556; line-height:1.7;">
+  <summary style="cursor:pointer; font-weight:700; color:#1b2a4a; font-size:0.85rem; margin-bottom:4px;">Theory &amp; Equations</summary>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:10px; max-width:900px;">
+    <div>
+      <strong>Electrostatic double-layer (EDL) repulsion</strong><br/>
+      V<sub>EDL</sub> = 64π ε₀ε<sub>r</sub> R (k<sub>B</sub>T / ze)² γ² exp(−κh)<br/>
+      γ = tanh(zeψ₀ / 4k<sub>B</sub>T)&emsp;(reduced surface potential)<br/>
+      κ = [2N<sub>A</sub>cz²e² / (ε₀ε<sub>r</sub>k<sub>B</sub>T)]<sup>½</sup>&emsp;(Debye parameter)<br/>
+      κ⁻¹ ≈ 0.304 / (z√c) nm&emsp;(water, 25 °C, c in mol/L)
+    </div>
+    <div>
+      <strong>van der Waals attraction (with retardation)</strong><br/>
+      V<sub>vdW</sub> = −AR / (12h) · 1/(1 + 14h/λ<sub>L</sub>)<br/>
+      A = Hamaker constant (material dependent)<br/>
+      λ<sub>L</sub> ≈ 100 nm (London wavelength)<br/>
+      Derjaguin approximation valid for h ≪ R
+    </div>
+    <div>
+      <strong>Stability criterion (rule of thumb)</strong><br/>
+      V<sub>max</sub> &gt; 15 k<sub>B</sub>T → kinetically stable colloid<br/>
+      V<sub>max</sub> = 5–15 k<sub>B</sub>T → marginal stability<br/>
+      V<sub>max</sub> &lt; 5 k<sub>B</sub>T → rapid coagulation<br/>
+      Secondary minimum → reversible flocculation
+    </div>
+    <div>
+      <strong>Schulze–Hardy rule</strong><br/>
+      CCC ∝ ε³(k<sub>B</sub>T)⁵ψ₀⁴ / (A²z⁶e⁶)&emsp;(large ψ₀)<br/>
+      CCC ∝ 1/z⁶ — valence has a dramatic effect:<br/>
+      z=1→z=2 reduces CCC ~64×; z=1→z=3 ~729×
+    </div>
+  </div>
+</details>
+
+</body>
+</html>
